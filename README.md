@@ -46,3 +46,29 @@ deploy_model_foodia
    └─ index.html
 
 ```
+```
+deploy_model_foodia
+├─ .dockerignore
+├─ Dockerfile.gcp
+├─ Dockerfile.m1
+├─ LICENSE
+├─ README.md
+├─ app.py
+├─ bilstm_model2.h5
+├─ cloudbuild.yaml
+├─ environment.yml
+├─ images
+│  ├─ cat2.jpg
+│  ├─ dog.jpg
+│  └─ receipt (3).jpg
+├─ img_to_txt_ocr.py
+├─ model.py
+├─ predicted_results
+│  └─ hasil_receipt (3).jpg.csv
+├─ requirements.txt
+├─ save_label_encoder2.pkl
+├─ save_tokenizer2.pkl
+└─ templates
+   └─ index.html
+
+```

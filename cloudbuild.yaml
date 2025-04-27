@@ -3,5 +3,31 @@ steps:
     args:
       - "build"
       - "--file=Dockerfile.gcp"
-      - "--tag=asia-southeast1-docker.pkg.dev/arkav01/receipt-ocr-repo/receipt-ocr-app:v1"
+      - "--tag=asia-southeast1-docker.pkg.dev/arkav01/receipt-ocr-repo/receipt-ocr-api:latest"
+      - "--tag=asia-southeast1-docker.pkg.dev/arkav01/receipt-ocr-repo/receipt-ocr-api:v1.1"
       - "."
+
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "push"
+      - "asia-southeast1-docker.pkg.dev/arkav01/receipt-ocr-repo/receipt-ocr-api:latest"
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: gcloud
+    args:
+      - "run"
+      - "deploy"
+      - "receipt-ocr-api"
+      - "--image=asia-southeast1-docker.pkg.dev/arkav01/receipt-ocr-repo/receipt-ocr-api:latest"
+      - "--region=asia-southeast1"
+      - "--platform=managed"
+      - "--allow-unauthenticated"
+      - "--memory=2Gi"
+      - "--cpu=2"
+      - "--timeout=10m"
+      - "--min-instances=0"
+      - "--max-instances=10"
+
+images:
+  - "asia-southeast1-docker.pkg.dev/arkav01/receipt-ocr-repo/receipt-ocr-api:latest"
+  - "asia-southeast1-docker.pkg.dev/arkav01/receipt-ocr-repo/receipt-ocr-api:v1.1"
