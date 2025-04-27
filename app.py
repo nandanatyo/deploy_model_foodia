@@ -1,36 +1,20 @@
 from flask import Flask, render_template, request
+import os
+import logging
+import tempfile
+import shutil
 
-from keras.preprocessing.image import load_img
-# from keras.preprocessing.image import img_to_array
-# from keras.applications.vgg16 import preprocess_input
-# from keras.applications.vgg16 import decode_predictions
-# #from keras.applications.vgg16 import VGG16
-# from keras.applications.resnet50 import ResNet50
-
-# LIBRARY
-import pandas as pd
-import pickle
-import numpy as np
-import re
-from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-from collections import defaultdict
-from paddleocr import PaddleOCR,draw_ocr
-
-# IMAGE PROCESSING
-import cv2
-import imutils
-import matplotlib.pyplot as plt
-import numpy as np
-
-app = Flask(__name__)
-model = load_model('bilstm_model2.h5')
-
-
-# -------------------------------------------------------------------
-
+# Import preprocessing dan model
 from img_to_txt_ocr import prepro
 from model import model
+
+app = Flask(__name__)
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+
+# Direktori untuk hasil prediksi saja
+os.makedirs("predicted_results", exist_ok=True)
 
 @app.route('/', methods=['GET'])
 def hello_word():
@@ -38,17 +22,53 @@ def hello_word():
 
 @app.route('/', methods=['POST'])
 def predict():
-    imagefile= request.files['imagefile']
-    image_path = "images/" + imagefile.filename
-    imagefile.save(image_path)
+    if 'imagefile' not in request.files:
+        return render_template('index.html', error="Tidak ada file yang diunggah")
 
-    df_test_tokens, X_test = prepro(image_path)
-    hasil_bilstm_model = model(df_test_tokens, X_test)
+    imagefile = request.files['imagefile']
+    if not imagefile.filename:
+        return render_template('index.html', error="Tidak ada file yang diunggah")
 
-    hasil_bilstm_model.to_csv('predicted_results/hasil_'+ imagefile.filename + '.csv', index=False)
+    # Buat direktori sementara untuk menyimpan file upload sebentar
+    temp_dir = tempfile.mkdtemp()
 
-    return render_template('index.html')
+    try:
+        # Simpan file sementara
+        temp_image_path = os.path.join(temp_dir, imagefile.filename)
+        imagefile.save(temp_image_path)
+        app.logger.info(f"File sementara disimpan di {temp_image_path}")
 
+        # Proses gambar dan buat prediksi
+        app.logger.info("Memproses gambar...")
+        df_test_tokens, X_test = prepro(temp_image_path)
+        app.logger.info("Menjalankan model prediksi...")
+        hasil_bilstm_model = model(df_test_tokens, X_test)
+
+        # Simpan hasil ke file CSV
+        output_filename = f"hasil_{os.path.splitext(imagefile.filename)[0]}.csv"
+        output_path = os.path.join("predicted_results", output_filename)
+        hasil_bilstm_model.to_csv(output_path, index=False)
+        app.logger.info(f"Hasil tersimpan di {output_path}")
+
+        # Ambil hasil untuk ditampilkan
+        items = hasil_bilstm_model.to_dict('records')
+
+        return render_template('index.html', prediction=True, items=items, receipt_name=imagefile.filename)
+
+    except Exception as e:
+        app.logger.error(f"Error saat memproses gambar: {str(e)}")
+        return render_template('index.html', error=f"Error saat memproses gambar: {str(e)}")
+
+    finally:
+        # Bersihkan - hapus direktori sementara dan semua isinya
+        app.logger.info(f"Membersihkan direktori sementara {temp_dir}")
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+        # Hapus juga folder processed_test jika masih ada
+        if os.path.exists('processed_test'):
+            shutil.rmtree('processed_test', ignore_errors=True)
 
 if __name__ == '__main__':
-    app.run(port=3000, debug=True)
+    # Gunakan PORT dari environment variable yang disediakan oleh Cloud Run
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port, debug=False)

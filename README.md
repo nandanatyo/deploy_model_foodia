@@ -24,3 +24,25 @@ python app.py
 
 ## Licence 
 This project is licensed under the MIT Licence.
+```
+deploy_model_foodia
+├─ Dockerfile
+├─ LICENSE
+├─ README.md
+├─ app.py
+├─ bilstm_model2.h5
+├─ images
+│  ├─ cat2.jpg
+│  ├─ dog.jpg
+│  └─ receipt (3).jpg
+├─ img_to_txt_ocr.py
+├─ model.py
+├─ predicted_results
+│  └─ hasil_receipt (3).jpg.csv
+├─ requirements.txt
+├─ save_label_encoder2.pkl
+├─ save_tokenizer2.pkl
+└─ templates
+   └─ index.html
+
+```

@@ -9,12 +9,13 @@ def prepro(image):
     import pandas as pd
     import nltk
     import pickle
+    import tempfile
     from nltk.corpus import stopwords
     from paddleocr import PaddleOCR,draw_ocr
     from tensorflow.keras.preprocessing.sequence import pad_sequences
     from collections import defaultdict
 
-    def process_receipt(image_path, show=True):
+    def process_receipt(image_path, show=False):
         def orient_vertical(img):
             h, w = img.shape[:2]
             return imutils.rotate(img, angle=270) if w > h else img
@@ -98,7 +99,7 @@ def prepro(image):
         # 7. Enhance for OCR
         enhanced = enhance_txt_adaptive(cropped)
 
-        # Optional Visualization
+        # Optional Visualization (disabled in this version)
         if show:
             plt.figure(figsize=(15, 5))
             plt.subplot(1, 3, 1)
@@ -120,58 +121,37 @@ def prepro(image):
         return cropped, enhanced
 
 
-    def preprocess_receipts(input_dir, output_dir, process_receipt_fn, show=False):
+    def preprocess_receipts(input_dir, process_receipt_fn, show=False):
         """
-        Memproses semua gambar struk dalam folder input_dir dan menyimpannya di output_dir.
-
-        Args:
-            input_dir (str): Path ke folder input (berisi gambar struk).
-            output_dir (str): Path ke folder output hasil preprocessing.
-            process_receipt_fn (function): Fungsi untuk memproses struk, return (cropped, enhanced).
-            show (bool): Jika True, tampilkan hasil tiap proses (opsional).
-
-        Returns:
-            list: Path dari file hasil enhanced.
+        Memproses gambar struk dan menyimpan hasil sementara.
         """
-        os.makedirs(output_dir, exist_ok=True)
+        # Buat direktori sementara
+        temp_dir = tempfile.mkdtemp(prefix="processed_")
 
-        valid_exts = (".jpg", ".jpeg", ".png")
-        receipt_paths = [
-            # os.path.join(input_dir, fname)
-            # for fname in os.listdir(input_dir)
-            # if fname.lower().endswith(valid_exts)
-            input_dir
-        ]
+        cropped, enhanced = process_receipt_fn(input_dir, show=show)
 
-        processed_files = []
-        for path in receipt_paths:
-            cropped, enhanced = process_receipt_fn(path, show=show)
-            base_name = os.path.splitext(os.path.basename(path))[0]
-            cropped_path = os.path.join(output_dir, f"{base_name}_cropped.jpg")
-            enhanced_path = os.path.join(output_dir, f"{base_name}_enhanced.jpg")
-            cv2.imwrite(enhanced_path, enhanced)
-            processed_files.append(enhanced_path)
+        if cropped is None or enhanced is None:
+            return []
 
-        # print(f"Jumlah struk diproses dari {input_dir}: {len(processed_files)}")
-        return processed_files
+        # Simpan enhanced ke file sementara
+        base_name = os.path.splitext(os.path.basename(input_dir))[0]
+        enhanced_path = os.path.join(temp_dir, f"{base_name}_enhanced.jpg")
+        cv2.imwrite(enhanced_path, enhanced)
 
-    # test_dir = '/images'
-    test_out = '/processed_test'
-    test_files = preprocess_receipts(image, test_out, process_receipt_fn=process_receipt)
+        return [enhanced_path]
+
+    # Buat direktori sementara untuk output OCR
+    test_out = tempfile.mkdtemp(prefix="processed_")
+    test_files = preprocess_receipts(image, process_receipt_fn=process_receipt)
+
+    if not test_files:
+        raise ValueError("Tidak dapat memproses gambar")
 
     ocr = PaddleOCR(use_angle_cls=True, lang='id') # need to run only once to download and load model into memory
 
     def run_ocr_on_receipts(processed_paths, ocr_model, use_cls=True):
         """
         Jalankan OCR pada daftar path gambar yang telah diproses.
-
-        Args:
-            processed_paths (list): Daftar path ke gambar hasil preprocessing.
-            ocr_model (PaddleOCR): Objek PaddleOCR yang sudah diinisialisasi di luar fungsi.
-            use_cls (bool): Gunakan klasifikasi orientasi teks.
-
-        Returns:
-            list of dict: Setiap dict berisi 'path' dan 'ocr_result'.
         """
         ocr_results = []
         for path in processed_paths:
@@ -181,9 +161,8 @@ def prepro(image):
                 'ocr_result': result
             })
 
-        # print(f"OCR selesai untuk {len(ocr_results)} gambar.")
         return ocr_results
-    
+
     test_ocr_results = run_ocr_on_receipts(test_files, ocr)
 
     def group_text_by_line(single_result, y_threshold=18):
@@ -231,12 +210,6 @@ def prepro(image):
                 'grouped_lines': grouped_lines
             })
 
-            # Print hasil (optional)
-            # print(f"\n=== Struk {idx+1} ({entry['path']}) ===")
-            # for i, line in enumerate(grouped_lines):
-            #     line_text = ' '.join([item[1] for item in line])
-            #     print(f"Baris {i+1}: {line_text}")
-
         return all_grouped
 
     semua_struk_dalam_baris_test = process_all_receipts(test_ocr_results)
@@ -249,13 +222,6 @@ def prepro(image):
     def preprocess_receipt_tokens(semua_struk_dalam_baris, apply_stopwords=True):
         """
         Ekstrak dan bersihkan token dari grouped_lines hasil OCR.
-
-        Args:
-            semua_struk_dalam_baris (list): List of dict hasil OCR, berisi path dan grouped_lines.
-            apply_stopwords (bool): True jika ingin menghapus stopwords Bahasa Indonesia.
-
-        Returns:
-            pd.DataFrame: Kolom filename, sentence_id, dan token.
         """
         all_token_info = []
 
@@ -292,16 +258,7 @@ def prepro(image):
     def prepare_test_data(df, tokenizer, max_len):
         """
         Siapkan data test untuk prediksi BiLSTM.
-
-        Args:
-            df (DataFrame): Data test tanpa label (kolom: filename, sentence_id, token)
-            tokenizer (Tokenizer): Tokenizer hasil training (sudah di-load)
-            max_len (int): Panjang padding yang konsisten dengan training
-
-        Returns:
-            X_test (np.array): Data test siap input ke model
         """
-
         grouped = defaultdict(list)
 
         for _, row in df.iterrows():
@@ -313,7 +270,20 @@ def prepro(image):
         X_padded = pad_sequences(X_tokenized, maxlen=max_len, padding='post')
 
         return X_padded
-        
+
     X_test = prepare_test_data(df_test_tokens, tokenizer=save_tokenizer, max_len=16)
+
+    # Bersihkan file-file sementara
+    for file_path in test_files:
+        try:
+            os.remove(file_path)
+        except:
+            pass
+
+    try:
+        # Bersihkan direktori sementara
+        shutil.rmtree(test_out, ignore_errors=True)
+    except:
+        pass
 
     return df_test_tokens, X_test
