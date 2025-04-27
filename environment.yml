@@ -1,0 +1,20 @@
+name: foodia
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.8
+  - pip
+  - numpy=1.23.5
+  - scipy
+  - flask
+  - tensorflow
+  - opencv
+  - pillow
+  - gunicorn
+  - pip:
+      - paddleocr
+      - imutils
+      - matplotlib
+      - nltk
+      - pandas

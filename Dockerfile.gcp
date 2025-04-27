@@ -1,0 +1,59 @@
+# Dockerfile.gcp - Optimized for Google Cloud Platform deployment
+FROM python:3.8-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies for OpenCV and scientific Python packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    g++ \
+    gfortran \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libatlas-base-dev \
+    libblas-dev \
+    liblapack-dev \
+    python3-dev \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy only requirements first to leverage Docker cache
+COPY requirements.txt .
+
+# Install Python packages with focus on stability
+# This layer will be cached unless requirements.txt changes
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir wheel && \
+    # Install core scientific packages separately
+    pip install --no-cache-dir numpy==1.23.5 && \
+    # Install remaining requirements
+    pip install --no-cache-dir -r requirements.txt
+
+# Install gunicorn for production serving
+RUN pip install --no-cache-dir gunicorn
+
+# Create directories for predictions and images (do this before copying files)
+RUN mkdir -p predicted_results images templates
+
+# Copy application code - separate frequently changing files from stable ones
+# Copy stable files first (less likely to change)
+COPY bilstm_model2.h5 save_label_encoder2.pkl save_tokenizer2.pkl ./
+COPY images/ images/
+COPY templates/ templates/
+
+# Copy code files last (most likely to change)
+COPY app.py img_to_txt_ocr.py model.py ./
+
+# Make port 8080 available (Cloud Run default)
+EXPOSE 8080
+
+# Define environment variable for port
+ENV PORT=8080
+
+# Command to run the application with optimized settings for Cloud Run
+CMD ["sh", "-c", "exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 app:app"]

@@ -1,0 +1,7 @@
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "--file=Dockerfile.gcp"
+      - "--tag=asia-southeast1-docker.pkg.dev/arkav01/receipt-ocr-repo/receipt-ocr-app:v1"
+      - "."
