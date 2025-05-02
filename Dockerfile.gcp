@@ -22,31 +22,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # First, install numpy with the EXACT version required by TensorFlow
 RUN pip install --no-cache-dir numpy==1.19.2
 
+# Install Pillow (PIL) with a compatible version
+RUN pip install --no-cache-dir Pillow==8.2.0
+
 # Now install TensorFlow and make sure pip doesn't upgrade numpy
 RUN pip install --no-cache-dir tensorflow-cpu==2.5.0 --no-deps && \
     pip install --no-cache-dir typing-extensions==3.7.4.3
 
-# Install remaining TensorFlow dependencies without allowing upgrades
-RUN pip install --no-cache-dir absl-py==0.12.0 \
-    astunparse==1.6.3 \
-    flatbuffers==1.12 \
-    gast==0.4.0 \
-    google-pasta==0.2.0 \
-    grpcio==1.34.1 \
-    h5py==3.1.0 \
-    keras-nightly==2.5.0.dev2021032900 \
-    Keras-Preprocessing==1.1.2 \
-    Markdown==3.3.4 \
-    opt-einsum==3.3.0 \
-    protobuf==3.17.0 \
-    six==1.15.0 \
-    tensorboard==2.5.0 \
-    tensorboard-data-server==0.6.1 \
-    tensorboard-plugin-wit==1.8.0 \
-    tensorflow-estimator==2.5.0 \
-    termcolor==1.1.0 \
-    wrapt==1.12.1 \
-    Keras==2.4.3
+# Install Keras separately
+RUN pip install --no-cache-dir Keras==2.4.3 --no-deps
 
 # Install Flask and Werkzeug with specific versions
 RUN pip install --no-cache-dir Werkzeug==2.0.1 \
@@ -54,6 +38,7 @@ RUN pip install --no-cache-dir Werkzeug==2.0.1 \
     flask-cors==3.0.10 \
     gunicorn==20.1.0
 
+# Install other dependencies without allowing numpy upgrade
 RUN pip install --no-cache-dir pandas==1.3.0 \
     imutils==0.5.4 \
     matplotlib==3.4.3 \
@@ -67,30 +52,35 @@ RUN pip install --no-cache-dir scipy==1.6.3 \
     threadpoolctl==2.1.0 \
     --no-deps
 
-RUN pip install --no-cache-dir opencv-python==4.6.0.66 --no-deps
+# Install opencv with a specific version
+RUN pip install --no-cache-dir opencv-python==4.6.0.66
 
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir paddlepaddle==2.4.2 --no-deps
-
+# Install required dependencies for PaddleOCR
 RUN pip install --no-cache-dir \
+    protobuf==3.17.0 \
     cython \
     lmdb \
     pyclipper \
     shapely \
     imgaug \
-    pycryptodome \
-    --no-deps
+    pycryptodome
 
-RUN pip install --no-cache-dir paddleocr==2.6.0.3 --no-deps
+# Install PaddlePaddle and PaddleOCR
+RUN pip install --no-cache-dir paddlepaddle==2.4.2
+RUN pip install --no-cache-dir paddleocr==2.6.0.3
 
-RUN python -c "import numpy; print('NumPy version:', numpy.__version__)"
+# Print versions to verify
+RUN python -c "import numpy; import PIL; print('NumPy version:', numpy.__version__); print('PIL version:', PIL.__version__)"
 
+# Create directories
 RUN mkdir -p predicted_results images templates
 
+# Copy model files
 COPY bilstm_model2.h5 save_label_encoder2.pkl save_tokenizer2.pkl ./
 COPY images/ images/
 COPY templates/ templates/
 
+# Copy application code
 COPY app.py img_to_txt_ocr.py model.py ./
 
 EXPOSE 8080
