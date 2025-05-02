@@ -14,9 +14,11 @@ CORS(app)
 logging.basicConfig(level=logging.INFO)
 os.makedirs("predicted_results", exist_ok=True)
 
+
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({"status": "OK", "timestamp": time.time()})
+
 
 @app.route('/api/predict', methods=['POST'])
 def predict_api():
@@ -39,7 +41,8 @@ def predict_api():
         app.logger.info("Running prediction model...")
         hasil_bilstm_model = model(df_test_tokens, X_test)
 
-        output_filename = f"hasil_{os.path.splitext(imagefile.filename)[0]}.csv"
+        output_filename = f"hasil_{
+            os.path.splitext(imagefile.filename)[0]}.csv"
         output_path = os.path.join("predicted_results", output_filename)
         hasil_bilstm_model.to_csv(output_path, index=False)
         app.logger.info(f"Results saved to {output_path}")
@@ -63,9 +66,11 @@ def predict_api():
         if os.path.exists('processed_test'):
             shutil.rmtree('processed_test', ignore_errors=True)
 
+
 @app.route('/', methods=['GET'])
 def hello_world():
     return render_template('index.html')
+
 
 @app.route('/', methods=['POST'])
 def predict_web():
@@ -88,18 +93,21 @@ def predict_web():
         app.logger.info("Running prediction model...")
         hasil_bilstm_model = model(df_test_tokens, X_test)
 
-        output_filename = f"hasil_{os.path.splitext(imagefile.filename)[0]}.csv"
+        output_filename = f"hasil_{
+            os.path.splitext(imagefile.filename)[0]}.csv"
         output_path = os.path.join("predicted_results", output_filename)
         hasil_bilstm_model.to_csv(output_path, index=False)
         app.logger.info(f"Results saved to {output_path}")
 
         items = hasil_bilstm_model.to_dict('records')
 
-        return render_template('index.html', prediction=True, items=items, receipt_name=imagefile.filename)
+        return render_template('index.html', prediction=True, items=items,
+                               receipt_name=imagefile.filename)
 
     except Exception as e:
         app.logger.error(f"Error processing image: {str(e)}")
-        return render_template('index.html', error=f"Error processing image: {str(e)}")
+        return render_template('index.html',
+                               error=f"Error processing image: {str(e)}")
 
     finally:
         app.logger.info(f"Cleaning up temporary directory {temp_dir}")
@@ -107,6 +115,7 @@ def predict_web():
 
         if os.path.exists('processed_test'):
             shutil.rmtree('processed_test', ignore_errors=True)
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))

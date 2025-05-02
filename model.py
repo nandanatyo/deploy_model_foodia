@@ -19,11 +19,10 @@ def model(df_test_tokens, X_test):
     y_test_idx = np.argmax(y_test_proba, axis=-1)
 
     # Ubah ke label asli
-    y_test_labels = save_label_encoder.inverse_transform(y_test_idx.ravel()).reshape(y_test_idx.shape)
-
+    y_test_labels = save_label_encoder.inverse_transform(
+        y_test_idx.ravel()).reshape(y_test_idx.shape)
 
     def predict_test_labels(test_df, y_test_labels, max_len):
-
         # Kelompokkan token berdasarkan (filename, sentence_id)
         tokens_grouped = defaultdict(list)
         for _, row in test_df.iterrows():
@@ -104,12 +103,11 @@ def model(df_test_tokens, X_test):
                     })
 
         return pd.DataFrame(extracted)
-    
+
     df_test_predictions = predict_test_labels(
         test_df=df_test_tokens,
-        y_test_labels= y_test_labels,
+        y_test_labels=y_test_labels,
         max_len=16
     )
-    
-    return extract_items_and_prices_flexible(df_test_predictions)
 
+    return extract_items_and_prices_flexible(df_test_predictions)

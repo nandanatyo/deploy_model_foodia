@@ -11,7 +11,7 @@ def prepro(image):
     import pickle
     import tempfile
     from nltk.corpus import stopwords
-    from paddleocr import PaddleOCR,draw_ocr
+    from paddleocr import PaddleOCR, draw_ocr
     from tensorflow.keras.preprocessing.sequence import pad_sequences
     from collections import defaultdict
 
@@ -38,7 +38,8 @@ def prepro(image):
         def find_receipt_bounding_box(binary, img):
             kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (15, 15))
             closed = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
-            contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            contours, _ = cv2.findContours(closed, cv2.RETR_EXTERNAL,
+                                           cv2.CHAIN_APPROX_SIMPLE)
             if not contours:
                 return img, None, None
             largest_cnt = max(contours, key=cv2.contourArea)
@@ -78,7 +79,8 @@ def prepro(image):
         binary = binarize(gray)
 
         # 3. Bounding box
-        boxed, largest_cnt, rect = find_receipt_bounding_box(binary, rotated.copy())
+        boxed, largest_cnt, rect = find_receipt_bounding_box(binary,
+                                                             rotated.copy())
         if largest_cnt is None:
             print("No receipt detected.")
             return None, None
@@ -89,8 +91,10 @@ def prepro(image):
 
         # 5. Cari ulang contour di image yang sudah diluruskan
         gray_tilted = cv2.cvtColor(tilted, cv2.COLOR_BGR2GRAY)
-        _, binary_tilted = cv2.threshold(gray_tilted, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        contours, _ = cv2.findContours(binary_tilted, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        _, binary_tilted = cv2.threshold(gray_tilted, 0, 255, cv2.THRESH_BINARY
+                                         + cv2.THRESH_OTSU)
+        contours, _ = cv2.findContours(binary_tilted, cv2.RETR_EXTERNAL,
+                                       cv2.CHAIN_APPROX_SIMPLE)
         largest_cnt_tilted = max(contours, key=cv2.contourArea)
 
         # 6. Crop
@@ -120,7 +124,6 @@ def prepro(image):
 
         return cropped, enhanced
 
-
     def preprocess_receipts(input_dir, process_receipt_fn, show=False):
         """
         Memproses gambar struk dan menyimpan hasil sementara.
@@ -147,7 +150,8 @@ def prepro(image):
     if not test_files:
         raise ValueError("Tidak dapat memproses gambar")
 
-    ocr = PaddleOCR(use_angle_cls=True, lang='id') # need to run only once to download and load model into memory
+    # need to run only once to download and load model into memory
+    ocr = PaddleOCR(use_angle_cls=True, lang='id')
 
     def run_ocr_on_receipts(processed_paths, ocr_model, use_cls=True):
         """
@@ -167,10 +171,12 @@ def prepro(image):
 
     def group_text_by_line(single_result, y_threshold=18):
         """
-        Mengelompokkan hasil OCR satu struk menjadi baris-baris teks berdasarkan posisi y-nya.
+        Mengelompokkan hasil OCR satu struk menjadi
+        baris-baris teks berdasarkan posisi y-nya.
         """
         # Hasil dari PaddleOCR satu struk = list of (box, (text, score))
-        sorted_items = sorted(single_result, key=lambda x: x[0][0][1])  # sort top to bottom
+        sorted_items = sorted(
+            single_result, key=lambda x: x[0][0][1])  # sort top to bottom
 
         lines = []
         current_line = []
@@ -197,13 +203,15 @@ def prepro(image):
 
     def process_all_receipts(ocr_results, y_threshold=18):
         """
-        Memproses hasil OCR dari banyak struk menjadi baris-baris teks yang rapi.
+        Memproses hasil OCR dari banyak struk
+        menjadi baris-baris teks yang rapi.
         """
         all_grouped = []
 
         for idx, entry in enumerate(ocr_results):
             result = entry['ocr_result']  # ambil result dari dict
-            grouped_lines = group_text_by_line(result[0], y_threshold)  # result[0] = satu halaman
+            grouped_lines = group_text_by_line(
+                result[0], y_threshold)  # result[0] = satu halaman
 
             all_grouped.append({
                 'path': entry['path'],
@@ -219,10 +227,9 @@ def prepro(image):
     stop_words = set(stopwords.words('indonesian'))
 
     # --- Fungsi Preprocessing Token ---
-    def preprocess_receipt_tokens(semua_struk_dalam_baris, apply_stopwords=True):
-        """
-        Ekstrak dan bersihkan token dari grouped_lines hasil OCR.
-        """
+    def preprocess_receipt_tokens(
+            semua_struk_dalam_baris, apply_stopwords=True):
+        # Ekstrak dan bersihkan token dari grouped_lines hasil OCR.
         all_token_info = []
 
         for struk in semua_struk_dalam_baris:
@@ -233,7 +240,9 @@ def prepro(image):
             for sentence_id, line in enumerate(grouped_lines, 1):
                 full_line = ' '.join([item[1] for item in line])
                 full_line = full_line.lower()
-                full_line = re.sub(r'[^a-z0-9\s]', '', full_line)  # Hapus karakter non-alfanumerik
+                full_line = re.sub(
+                    r'[^a-z0-9\s]', '',
+                    full_line)  # Hapus karakter non-alfanumerik
                 tokens = full_line.strip().split()
 
                 if apply_stopwords:
@@ -271,19 +280,20 @@ def prepro(image):
 
         return X_padded
 
-    X_test = prepare_test_data(df_test_tokens, tokenizer=save_tokenizer, max_len=16)
+    X_test = prepare_test_data(df_test_tokens,
+                               tokenizer=save_tokenizer, max_len=16)
 
     # Bersihkan file-file sementara
     for file_path in test_files:
         try:
             os.remove(file_path)
-        except:
+        except Exception:
             pass
 
     try:
         # Bersihkan direktori sementara
         shutil.rmtree(test_out, ignore_errors=True)
-    except:
+    except Exception:
         pass
 
     return df_test_tokens, X_test

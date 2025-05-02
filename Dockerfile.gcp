@@ -2,6 +2,7 @@ FROM python:3.8-slim
 
 WORKDIR /app
 
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     gcc \
@@ -19,58 +20,41 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# First, install numpy with the EXACT version required by TensorFlow
-RUN pip install --no-cache-dir numpy==1.19.2
+# Create a requirements.txt file with all dependencies explicitly listed
+RUN echo "numpy==1.19.2\n\
+Pillow==8.2.0\n\
+tensorflow-cpu==2.5.0\n\
+Keras==2.4.3\n\
+typing-extensions==3.7.4.3\n\
+Werkzeug==2.0.1\n\
+flask==2.0.0\n\
+flask-cors==3.0.10\n\
+gunicorn==20.1.0\n\
+pandas==1.3.0\n\
+imutils==0.5.4\n\
+matplotlib==3.4.3\n\
+nltk==3.6.3\n\
+regex\n\
+scikit-learn==0.24.2\n\
+scipy==1.6.3\n\
+joblib==1.0.1\n\
+threadpoolctl==2.1.0\n\
+opencv-python==4.6.0.66\n\
+protobuf==3.17.0\n\
+cython\n\
+lmdb\n\
+pyclipper\n\
+shapely\n\
+imgaug\n\
+pycryptodome\n\
+paddlepaddle==2.4.2\n\
+paddleocr==2.6.0.3" > requirements.txt
 
-# Install Pillow (PIL) with a compatible version
-RUN pip install --no-cache-dir Pillow==8.2.0
+# Install all dependencies at once
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Now install TensorFlow and make sure pip doesn't upgrade numpy
-RUN pip install --no-cache-dir tensorflow-cpu==2.5.0 --no-deps && \
-    pip install --no-cache-dir typing-extensions==3.7.4.3
-
-# Install Keras separately
-RUN pip install --no-cache-dir Keras==2.4.3 --no-deps
-
-# Install Flask and Werkzeug with specific versions
-RUN pip install --no-cache-dir Werkzeug==2.0.1 \
-    flask==2.0.0 \
-    flask-cors==3.0.10 \
-    gunicorn==20.1.0
-
-# Install other dependencies without allowing numpy upgrade
-RUN pip install --no-cache-dir pandas==1.3.0 \
-    imutils==0.5.4 \
-    matplotlib==3.4.3 \
-    nltk==3.6.3 \
-    scikit-learn==0.24.2 \
-    --no-deps
-
-# Install dependencies for scikit-learn
-RUN pip install --no-cache-dir scipy==1.6.3 \
-    joblib==1.0.1 \
-    threadpoolctl==2.1.0 \
-    --no-deps
-
-# Install opencv with a specific version
-RUN pip install --no-cache-dir opencv-python==4.6.0.66
-
-# Install required dependencies for PaddleOCR
-RUN pip install --no-cache-dir \
-    protobuf==3.17.0 \
-    cython \
-    lmdb \
-    pyclipper \
-    shapely \
-    imgaug \
-    pycryptodome
-
-# Install PaddlePaddle and PaddleOCR
-RUN pip install --no-cache-dir paddlepaddle==2.4.2
-RUN pip install --no-cache-dir paddleocr==2.6.0.3
-
-# Print versions to verify
-RUN python -c "import numpy; import PIL; print('NumPy version:', numpy.__version__); print('PIL version:', PIL.__version__)"
+# Download NLTK data
+RUN python -c "import nltk; nltk.download('stopwords')"
 
 # Create directories
 RUN mkdir -p predicted_results images templates
