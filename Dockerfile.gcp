@@ -19,35 +19,71 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# First, install numpy with the EXACT version required by TensorFlow
+RUN pip install --no-cache-dir numpy==1.19.2
+
+# Now install TensorFlow and make sure pip doesn't upgrade numpy
+RUN pip install --no-cache-dir tensorflow-cpu==2.5.0 --no-deps && \
+    pip install --no-cache-dir typing-extensions==3.7.4.3
+
+# Install remaining TensorFlow dependencies without allowing upgrades
+RUN pip install --no-cache-dir absl-py==0.12.0 \
+    astunparse==1.6.3 \
+    flatbuffers==1.12 \
+    gast==0.4.0 \
+    google-pasta==0.2.0 \
+    grpcio==1.34.1 \
+    h5py==3.1.0 \
+    keras-nightly==2.5.0.dev2021032900 \
+    Keras-Preprocessing==1.1.2 \
+    Markdown==3.3.4 \
+    opt-einsum==3.3.0 \
+    protobuf==3.17.0 \
+    six==1.15.0 \
+    tensorboard==2.5.0 \
+    tensorboard-data-server==0.6.1 \
+    tensorboard-plugin-wit==1.8.0 \
+    tensorflow-estimator==2.5.0 \
+    termcolor==1.1.0 \
+    wrapt==1.12.1 \
+    Keras==2.4.3
+
+# Install Flask and Werkzeug with specific versions
+RUN pip install --no-cache-dir Werkzeug==2.0.1 \
+    flask==2.0.0 \
+    flask-cors==3.0.10 \
+    gunicorn==20.1.0
+
+RUN pip install --no-cache-dir pandas==1.3.0 \
+    imutils==0.5.4 \
+    matplotlib==3.4.3 \
+    nltk==3.6.3 \
+    scikit-learn==0.24.2 \
+    --no-deps
+
+# Install dependencies for scikit-learn
+RUN pip install --no-cache-dir scipy==1.6.3 \
+    joblib==1.0.1 \
+    threadpoolctl==2.1.0 \
+    --no-deps
+
+RUN pip install --no-cache-dir opencv-python==4.6.0.66 --no-deps
+
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir wheel
+    pip install --no-cache-dir paddlepaddle==2.4.2 --no-deps
 
-RUN pip install --no-cache-dir numpy==1.19.5
+RUN pip install --no-cache-dir \
+    cython \
+    lmdb \
+    pyclipper \
+    shapely \
+    imgaug \
+    pycryptodome \
+    --no-deps
 
-RUN pip install --no-cache-dir scipy==1.6.3 && \
-    pip install --no-cache-dir tensorflow-cpu==2.5.0 && \
-    pip install --no-cache-dir keras==2.4.3
+RUN pip install --no-cache-dir paddleocr==2.6.0.3 --no-deps
 
-RUN pip install --no-cache-dir werkzeug==2.0.1 && \
-    pip install --no-cache-dir flask==2.0.0 && \
-    pip install --no-cache-dir flask-cors==3.0.10 && \
-    pip install --no-cache-dir gunicorn==20.1.0
-
-RUN pip install --no-cache-dir pandas==1.3.0 && \
-    pip install --no-cache-dir scikit-learn==0.24.2 && \
-    pip install --no-cache-dir matplotlib==3.4.3 && \
-    pip install --no-cache-dir pillow==8.2.0
-
-RUN pip install --no-cache-dir opencv-python==4.6.0.66 && \
-    pip install --no-cache-dir imutils==0.5.4
-
-RUN pip install --no-cache-dir nltk==3.6.3
-
-RUN pip install --no-cache-dir protobuf==3.20.0 && \
-    pip install --no-cache-dir paddlepaddle==2.4.2 && \
-    pip install --no-cache-dir "paddleocr>=2.0.1,<2.7.0"
-
-RUN python -c "import numpy; import tensorflow; import keras; print(f'NumPy: {numpy.__version__}, TF: {tensorflow.__version__}, Keras: {keras.__version__}')"
+RUN python -c "import numpy; print('NumPy version:', numpy.__version__)"
 
 RUN mkdir -p predicted_results images templates
 
@@ -60,8 +96,4 @@ COPY app.py img_to_txt_ocr.py model.py ./
 EXPOSE 8080
 ENV PORT=8080
 
-ENV PYTHONWARNINGS="ignore::FutureWarning"
-
-RUN echo 'import numpy as np; np.typeDict = {k: v for k, v in np._typeDict.items()} if hasattr(np, "_typeDict") else {}' > numpy_patch.py
-
-CMD ["sh", "-c", "python -c 'import numpy; print(\"NumPy version:\", numpy.__version__)' && exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 app:app"]
+CMD ["sh", "-c", "exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 app:app"]
